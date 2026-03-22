@@ -610,6 +610,51 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
 .vrc-pending{color:var(--orange);border:1px solid rgba(240,119,30,.35);background:rgba(240,119,30,.1);}
 .vrc-public{color:var(--blue);border:1px solid rgba(112,186,244,.3);background:rgba(112,186,244,.08);}
 .vrc-private{color:var(--purple);border:1px solid rgba(158,118,204,.3);background:rgba(158,118,204,.08);}
+.vrc-booked{color:var(--muted);border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);}
+
+/* Booked venue card state */
+.venue-row-card.booked{opacity:.45;cursor:not-allowed;pointer-events:none;}
+.venue-row-card.booked:hover{transform:none;border-color:var(--border);}
+
+/* ── APPROVAL NOTIFICATION BANNER ── */
+.approval-notif{
+  position:fixed;bottom:5.5rem;right:1.5rem;z-index:9998;
+  max-width:360px;width:calc(100vw - 3rem);
+  background:rgba(13,11,26,0.97);
+  border:1px solid var(--border);border-radius:8px;
+  padding:1.1rem 1.3rem 1rem;
+  box-shadow:0 16px 48px rgba(0,0,0,.55);
+  display:flex;flex-direction:column;gap:.5rem;
+  transform:translateY(20px);opacity:0;
+  transition:transform .35s cubic-bezier(.16,1,.3,1),opacity .35s ease;
+  pointer-events:none;
+}
+.approval-notif.show{transform:translateY(0);opacity:1;pointer-events:auto;}
+.approval-notif.approved{border-color:rgba(78,203,113,.4);}
+.approval-notif.rejected{border-color:rgba(255,107,107,.4);}
+.approval-notif .an-bar{
+  position:absolute;top:0;left:0;right:0;height:3px;border-radius:8px 8px 0 0;
+}
+.approval-notif.approved .an-bar{background:var(--green);}
+.approval-notif.rejected .an-bar{background:var(--red);}
+.an-header{display:flex;align-items:center;gap:.6rem;}
+.an-icon{font-size:1.35rem;line-height:1;}
+.an-title{font-size:.88rem;font-weight:700;flex:1;}
+.an-close{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:1rem;padding:.1rem .3rem;border-radius:3px;transition:color .2s;}
+.an-close:hover{color:var(--text);}
+.an-body{font-size:.78rem;color:var(--muted);line-height:1.5;padding-left:1.95rem;}
+.an-detail{font-size:.7rem;color:rgba(244,240,255,.35);padding-left:1.95rem;margin-top:.1rem;}
+.an-progress{
+  position:absolute;bottom:0;left:0;height:2px;
+  background:rgba(255,255,255,.1);border-radius:0 0 8px 8px;
+  width:100%;
+}
+.an-progress-fill{
+  height:100%;border-radius:inherit;
+  transition:width linear;
+}
+.approval-notif.approved .an-progress-fill{background:var(--green);}
+.approval-notif.rejected .an-progress-fill{background:var(--red);}
 .vrc-select-btn{
   background:transparent;border:1px solid rgba(245,119,161,.35);
   color:var(--pink);font-family:'DM Sans',sans-serif;
@@ -1154,6 +1199,9 @@ function renderAfterLoad() {
   renderCalendar();
   renderVenueList();
   updateHeroStats();
+  initStatusSnapshot();
+  // auto-start polling if user has pending bookings from a previous session
+  if (myBookings.some(b => b.status === 'pending')) startStatusPolling();
 }
 
 
@@ -1293,24 +1341,28 @@ function renderVenueList() {
     return;
   }
   list.innerHTML = dayVenues.map(v => {
-    const hasPending = allBookings.some(b => b.venueId===v.id && b.status==='pending');
-    const blocked = hasPending;
+    const hasPending   = allBookings.some(b => b.venueId===v.id && b.status==='pending');
+    const hasConfirmed = allBookings.some(b => b.venueId===v.id && b.status==='confirmed');
+    const blocked = hasPending || hasConfirmed;
+    const cardClass = hasConfirmed ? 'booked' : hasPending ? 'blocked' : '';
     return `
-    <div class="venue-row-card ${blocked?'blocked':''}" onclick="${!blocked?`pickVenue('${v.id}')`:''}" >
+    <div class="venue-row-card ${cardClass}" onclick="${!blocked?`pickVenue('${v.id}')`:''}" >
       <div class="vrc-name-wrap">
         <div class="vrc-name">${v.name}</div>
         <div class="vrc-meta">📅 ${v.day||''}, ${formatDateShort(v.date)}</div>
         <div class="vrc-badges" style="margin-top:.4rem;">
           <span class="vrc-badge ${v.confirmStatus==='Available'?'vrc-available':''}" style="${v.confirmStatus!=='Available'?'color:var(--yellow);border:1px solid rgba(245,200,66,.3);background:rgba(245,200,66,.08);':''}">${v.confirmStatus}</span>
           <span class="vrc-badge ${v.visibility==='Public'?'vrc-public':'vrc-private'}">${v.visibility}</span>
-          ${hasPending?'<span class="vrc-badge vrc-pending">⏳ Pending Request</span>':''}
+          ${hasConfirmed?'<span class="vrc-badge vrc-booked">🔒 Booked</span>':hasPending?'<span class="vrc-badge vrc-pending">⏳ Pending Request</span>':''}
         </div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.6rem;">
         <div class="vrc-time">🕐 ${formatTime(v.timeStart)} – ${formatTime(v.timeEnd)}</div>
-        ${!blocked
-          ? `<button class="vrc-select-btn" onclick="event.stopPropagation();pickVenue('${v.id}')">Select →</button>`
-          : `<span style="font-size:.72rem;color:var(--orange);">Slot pending</span>`
+        ${hasConfirmed
+          ? `<span style="font-size:.72rem;color:var(--muted);font-style:italic;">Slot booked</span>`
+          : !hasPending
+            ? `<button class="vrc-select-btn" onclick="event.stopPropagation();pickVenue('${v.id}')">Select →</button>`
+            : `<span style="font-size:.72rem;color:var(--orange);">Slot pending</span>`
         }
       </div>
     </div>`;
@@ -1447,12 +1499,14 @@ function submitBooking() {
   };
   allBookings.unshift(b);
   myBookings.unshift(b);
+  _lastKnownStatuses[b.id] = 'pending'; // snapshot this new booking
   saveAll();
   showConfirmModalFn(b);
   renderUserBookings();
   renderVenues();
   updateHeroStats();
   updatePendingBadge();
+  startStatusPolling(); // begin polling for status changes
   ['inp-first','inp-last','inp-phone','inp-notes'].forEach(id=>document.getElementById(id).value='');
   // reset phone field state
   document.getElementById('inp-phone').classList.remove('ok','err');
@@ -1955,8 +2009,108 @@ document.getElementById('confirmModal').addEventListener('click',e=>{if(e.target
 document.getElementById('venueModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeVenueModal();});
 
 // ═══════════════════════════════════════
-// TOAST
+// APPROVAL NOTIFICATION SYSTEM
 // ═══════════════════════════════════════
+let _notifTimer = null;
+let _notifProgressTimer = null;
+let _lastKnownStatuses = {}; // id → status snapshot at page load
+
+function initStatusSnapshot() {
+  // Record current statuses of myBookings so we only notify on *changes*
+  myBookings.forEach(b => { _lastKnownStatuses[b.id] = b.status; });
+}
+
+function showApprovalNotif(type, venueName, bookingId) {
+  clearTimeout(_notifTimer);
+  clearInterval(_notifProgressTimer);
+
+  const notif = document.getElementById('approvalNotif');
+  const icon  = document.getElementById('an-icon');
+  const title = document.getElementById('an-title');
+  const body  = document.getElementById('an-body');
+  const detail= document.getElementById('an-detail');
+  const fill  = document.getElementById('an-progress-fill');
+
+  notif.classList.remove('approved','rejected');
+
+  if (type === 'approved') {
+    notif.classList.add('approved');
+    icon.textContent  = '🎉';
+    title.textContent = 'Slot Approved!';
+    body.textContent  = `Your slot at ${venueName} has been confirmed by the admin.`;
+    detail.textContent= `Booking ID: ${bookingId}`;
+  } else {
+    notif.classList.add('rejected');
+    icon.textContent  = '❌';
+    title.textContent = 'Slot Rejected';
+    body.textContent  = `Your request for ${venueName} was not approved this time.`;
+    detail.textContent= `Booking ID: ${bookingId}`;
+  }
+
+  fill.style.transition = 'none';
+  fill.style.width = '100%';
+  notif.classList.add('show');
+
+  // Animated progress bar drain over 6 seconds
+  setTimeout(() => {
+    fill.style.transition = 'width 6s linear';
+    fill.style.width = '0%';
+  }, 50);
+
+  _notifTimer = setTimeout(() => dismissApprovalNotif(), 6100);
+}
+
+function dismissApprovalNotif() {
+  clearTimeout(_notifTimer);
+  clearInterval(_notifProgressTimer);
+  const notif = document.getElementById('approvalNotif');
+  notif.classList.remove('show');
+}
+
+// Poll Supabase every 8s when user is on the form/venues page and has pending bookings
+let _pollTimer = null;
+function startStatusPolling() {
+  stopStatusPolling();
+  _pollTimer = setInterval(pollMyBookingStatuses, 8000);
+}
+function stopStatusPolling() {
+  clearInterval(_pollTimer);
+}
+
+async function pollMyBookingStatuses() {
+  const pendingIds = myBookings.filter(b => b.status === 'pending').map(b => b.id);
+  if (!pendingIds.length) { stopStatusPolling(); return; }
+
+  try {
+    const idList = pendingIds.map(id => `id.eq.${encodeURIComponent(id)}`).join(',');
+    const r = await fetch(`${SB_URL}/rest/v1/bookings?or=(${idList})&select=id,status`, { headers: SB_HDR_R });
+    if (!r.ok) return;
+    const rows = await r.json();
+
+    rows.forEach(row => {
+      const prev = _lastKnownStatuses[row.id];
+      if (prev === 'pending' && (row.status === 'confirmed' || row.status === 'rejected')) {
+        // Update local state
+        const b = myBookings.find(x => x.id === row.id);
+        if (b) b.status = row.status;
+        const ab = allBookings.find(x => x.id === row.id);
+        if (ab) ab.status = row.status;
+        _lastKnownStatuses[row.id] = row.status;
+
+        // Show notification to user
+        const booking = myBookings.find(x => x.id === row.id);
+        showApprovalNotif(row.status === 'confirmed' ? 'approved' : 'rejected', booking?.venue || 'your venue', row.id);
+
+        // Refresh UI
+        renderUserBookings();
+        renderVenueList();
+        saveLocal();
+      }
+    });
+  } catch(e) { /* silent fail */ }
+}
+
+
 let _tt;
 function showToast(icon,title,msg){
   clearTimeout(_tt);
@@ -2048,6 +2202,19 @@ function togglePw() {
   else { inp.type = 'password'; btn.textContent = '👁'; }
 }
 </script>
+
+<!-- APPROVAL NOTIFICATION BANNER -->
+<div class="approval-notif" id="approvalNotif" role="alert" aria-live="assertive">
+  <div class="an-bar"></div>
+  <div class="an-header">
+    <span class="an-icon" id="an-icon">✅</span>
+    <span class="an-title" id="an-title">Slot Approved!</span>
+    <button class="an-close" onclick="dismissApprovalNotif()" aria-label="Dismiss">✕</button>
+  </div>
+  <div class="an-body" id="an-body">Your slot request has been approved.</div>
+  <div class="an-detail" id="an-detail"></div>
+  <div class="an-progress"><div class="an-progress-fill" id="an-progress-fill" style="width:100%"></div></div>
+</div>
 
 <!-- ADMIN LOGIN -->
 <div class="login-page" id="loginPage">
