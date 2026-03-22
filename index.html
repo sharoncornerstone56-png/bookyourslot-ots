@@ -1059,7 +1059,19 @@ const SB_HDR_R = { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` };
 
 // localStorage fallback key
 const LS_KEY = 'ots_local_v4';
+const MY_BOOKINGS_KEY = 'ots_my_bookings_v1'; // persists user's own requests across refresh
 let _syncTimer = null;
+
+// ── Save / restore myBookings locally so they survive page refresh ──
+function saveMyBookings() {
+  try { localStorage.setItem(MY_BOOKINGS_KEY, JSON.stringify(myBookings)); } catch(e){}
+}
+function loadMyBookings() {
+  try {
+    const raw = localStorage.getItem(MY_BOOKINGS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch(e) { return []; }
+}
 
 // ── Sync status indicator ──
 function showSyncStatus(msg, color) {
@@ -1092,6 +1104,7 @@ async function sbDelete(table, id) {
 // ── localStorage backup ──
 function saveLocal() {
   try { localStorage.setItem(LS_KEY, JSON.stringify({venues,allBookings,galleryPhotos,savedAt:Date.now()})); } catch(e){}
+  saveMyBookings();
 }
 
 // ── Save all tables to Supabase (debounced) ──
@@ -1131,6 +1144,11 @@ function saveAll() { saveLocal(); saveRemote(); }
 // ── Load from Supabase → localStorage fallback → defaults ──
 async function loadData() {
   showSyncStatus('⏳ Loading…','var(--yellow)');
+
+  // Restore myBookings from localStorage FIRST (so UI shows immediately)
+  myBookings = loadMyBookings();
+  renderUserBookings();
+
   try {
     const [vRows, bRows, gRows] = await Promise.all([
       sbGet('venues'), sbGet('bookings'), sbGet('gallery')
@@ -1149,7 +1167,27 @@ async function loadData() {
       status:b.status||'pending', createdAt:b.created_at||''
     }));
     galleryPhotos = gRows.map(g=>({id:g.id,url:g.url,caption:g.caption||''}));
-    myBookings = [];
+
+    // ── Cross-check myBookings statuses against live Supabase data ──
+    // This catches approvals/rejections that happened while user was away
+    let statusChanged = false;
+    myBookings = myBookings.map(mb => {
+      const live = allBookings.find(ab => ab.id === mb.id);
+      if (live && live.status !== mb.status) {
+        // Status changed while they were gone — queue a notification
+        setTimeout(() => {
+          showApprovalNotif(
+            live.status === 'confirmed' ? 'approved' : 'rejected',
+            mb.venue, mb.id
+          );
+        }, 1200); // slight delay so page finishes loading first
+        statusChanged = true;
+        return { ...mb, status: live.status };
+      }
+      return mb;
+    });
+    if (statusChanged) saveMyBookings();
+
     // Seed defaults on very first load if DB is empty
     if (!venues.length) {
       venues = DEFAULT_VENUES;
@@ -1171,14 +1209,13 @@ async function loadData() {
         venues        = d.venues        || DEFAULT_VENUES;
         allBookings   = d.allBookings   || [];
         galleryPhotos = d.galleryPhotos || [];
-        myBookings    = [];
         showSyncStatus('📱 Local data loaded','var(--blue)');
       } else {
-        venues = DEFAULT_VENUES; allBookings = []; galleryPhotos = []; myBookings = [];
+        venues = DEFAULT_VENUES; allBookings = []; galleryPhotos = [];
         showSyncStatus('🆕 Default data','var(--muted)');
       }
     } catch(e2) {
-      venues = DEFAULT_VENUES; allBookings = []; galleryPhotos = []; myBookings = [];
+      venues = DEFAULT_VENUES; allBookings = []; galleryPhotos = [];
     }
   }
   renderAfterLoad();
@@ -1199,8 +1236,9 @@ function renderAfterLoad() {
   renderCalendar();
   renderVenueList();
   updateHeroStats();
+  renderUserBookings(); // re-render with fully loaded + cross-checked statuses
   initStatusSnapshot();
-  // auto-start polling if user has pending bookings from a previous session
+  // auto-start polling if user has pending bookings
   if (myBookings.some(b => b.status === 'pending')) startStatusPolling();
 }
 
@@ -1482,7 +1520,7 @@ function validateForm() {
 // ═══════════════════════════════════════
 // SUBMIT BOOKING
 // ═══════════════════════════════════════
-function submitBooking() {
+async function submitBooking() {
   const venue = venues.find(v=>v.id===selectedVenueId);
   const b = {
     id:        'OTS-'+Math.random().toString(36).substr(2,8).toUpperCase(),
@@ -1494,21 +1532,42 @@ function submitBooking() {
     phone:     document.getElementById('inp-phone').value.trim(),
     notes:     document.getElementById('inp-notes').value.trim(),
     price:     0,
-    status:    'pending',   // ← always starts pending
+    status:    'pending',
     createdAt: new Date().toISOString(),
   };
+
+  // Optimistically update UI immediately
   allBookings.unshift(b);
   myBookings.unshift(b);
-  _lastKnownStatuses[b.id] = 'pending'; // snapshot this new booking
-  saveAll();
+  _lastKnownStatuses[b.id] = 'pending';
+  saveLocal(); // save to localStorage right away
   showConfirmModalFn(b);
   renderUserBookings();
   renderVenues();
   updateHeroStats();
   updatePendingBadge();
-  startStatusPolling(); // begin polling for status changes
+  startStatusPolling();
+
+  // Write directly to Supabase NOW (no debounce) so admin sees it immediately
+  try {
+    await fetch(`${SB_URL}/rest/v1/bookings`, {
+      method: 'POST',
+      headers: {...SB_HDR, 'Prefer': 'resolution=merge-duplicates,return=minimal'},
+      body: JSON.stringify([{
+        id: b.id, venue_id: b.venueId, venue: b.venue,
+        date: b.date, type: b.type, name: b.name,
+        phone: b.phone, notes: b.notes,
+        status: b.status, created_at: b.createdAt
+      }])
+    });
+    showSyncStatus('✅ Request sent','var(--green)');
+  } catch(e) {
+    console.error('Failed to sync booking:', e);
+    showSyncStatus('⚠ Saved locally — will retry','var(--orange)');
+    saveRemote(); // fallback debounced sync
+  }
+
   ['inp-first','inp-last','inp-phone','inp-notes'].forEach(id=>document.getElementById(id).value='');
-  // reset phone field state
   document.getElementById('inp-phone').classList.remove('ok','err');
   document.getElementById('phone-err').textContent='';
   document.getElementById('phone-icon').textContent='';
@@ -1523,11 +1582,13 @@ function renderUserBookings() {
   const list = document.getElementById('bookingsList');
   if (!myBookings.length) { list.innerHTML='<div class="empty-state">No requests yet. Submit your slot above.</div>'; return; }
   list.innerHTML = myBookings.map(b=>`
-    <div class="booking-item">
+    <div class="booking-item" style="${b.status==='rejected'?'border-color:rgba(255,107,107,.2);background:rgba(255,107,107,.04);':''}">
       <div class="bi-dot ${b.status}"></div>
       <div class="bi-info">
         <div class="bi-name">${b.venue}</div>
         <div class="bi-detail">${formatDate(b.date)} · ${b.type}</div>
+        ${b.status==='rejected'?'<div style="font-size:.68rem;color:var(--red);margin-top:3px;">❌ Not approved this time</div>':''}
+        ${b.status==='confirmed'?'<div style="font-size:.68rem;color:var(--green);margin-top:3px;">✅ Slot confirmed!</div>':''}
       </div>
       <span class="bi-sbadge ${b.status}">${b.status}</span>
       ${b.status==='pending'?`<button class="bi-cancel" onclick="cancelMyRequest('${b.id}')" title="Withdraw">✕</button>`:''}
@@ -1538,7 +1599,7 @@ function cancelMyRequest(id) {
   const b = allBookings.find(x=>x.id===id);
   if (b) b.status='cancelled';
   myBookings = myBookings.filter(x=>x.id!==id);
-  saveAll(); renderUserBookings(); renderVenueList(); updateHeroStats(); updatePendingBadge();
+  saveLocal(); saveMyBookings(); renderUserBookings(); renderVenueList(); updateHeroStats(); updatePendingBadge();
   showToast('🗑️','Request Withdrawn','Your slot request has been removed.');
 }
 function updateHeroStats() {}
@@ -2105,6 +2166,7 @@ async function pollMyBookingStatuses() {
         renderUserBookings();
         renderVenueList();
         saveLocal();
+        saveMyBookings(); // persist the updated status so next refresh shows correct state
       }
     });
   } catch(e) { /* silent fail */ }
