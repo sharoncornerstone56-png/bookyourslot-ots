@@ -411,7 +411,208 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
   border-radius:2px;font-family:monospace;font-size:.82rem;
 }
 
+/* ── PHOTO MANAGER (Admin) ── */
+.btn-upload-photo{
+  display:inline-flex;align-items:center;gap:.5rem;
+  background:var(--grad);color:#fff;-webkit-text-fill-color:#fff;
+  font-family:'DM Sans',sans-serif;font-size:.8rem;font-weight:700;
+  letter-spacing:.12em;text-transform:uppercase;
+  padding:.75rem 1.6rem;border:none;border-radius:3px;
+  cursor:pointer;transition:all .22s;
+  box-shadow:0 6px 20px rgba(245,119,161,.25);
+}
+.btn-upload-photo:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(245,119,161,.4);}
+
+.photo-drop-zone{
+  border:2px dashed var(--border);border-radius:6px;
+  padding:2.5rem 1.5rem;text-align:center;cursor:pointer;
+  transition:all .2s;background:var(--surface);margin-bottom:1.8rem;
+}
+.photo-drop-zone:hover,.photo-drop-zone.drag-over{
+  border-color:var(--pink);background:rgba(245,119,161,.05);
+}
+.pdz-icon{font-size:2.4rem;margin-bottom:.5rem;}
+.pdz-title{font-size:.95rem;font-weight:600;margin-bottom:.3rem;}
+.pdz-sub{font-size:.75rem;color:var(--muted);}
+
+.photo-mgmt-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+  gap:1rem;
+}
+.photo-mgmt-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:6px;overflow:hidden;
+  transition:border-color .2s;
+  position:relative;
+}
+.photo-mgmt-card:hover{border-color:rgba(245,119,161,.4);}
+.pmc-thumb{
+  width:100%;height:140px;object-fit:cover;display:block;
+  background:rgba(255,255,255,.04);
+}
+.pmc-body{padding:.75rem .9rem;}
+.pmc-label-input{
+  width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border);
+  color:var(--text);font-family:'DM Sans',sans-serif;font-size:.8rem;
+  padding:.45rem .7rem;outline:none;border-radius:3px;margin-bottom:.6rem;
+  transition:border-color .2s;
+}
+.pmc-label-input:focus{border-color:var(--purple);}
+.pmc-actions{display:flex;gap:.4rem;}
+.pmc-del{
+  flex:1;background:transparent;border:1px solid rgba(255,107,107,.3);
+  color:var(--red);font-family:'DM Sans',sans-serif;font-size:.72rem;
+  font-weight:600;padding:.38rem;cursor:pointer;border-radius:3px;
+  transition:all .18s;letter-spacing:.06em;text-transform:uppercase;
+}
+.pmc-del:hover{background:rgba(255,107,107,.12);border-color:var(--red);}
+.pmc-move{
+  background:transparent;border:1px solid var(--border);color:var(--muted);
+  font-size:.85rem;padding:.38rem .55rem;cursor:pointer;border-radius:3px;
+  transition:all .18s;
+}
+.pmc-move:hover{border-color:rgba(255,255,255,.3);color:var(--text);}
+.pmc-order{
+  position:absolute;top:.5rem;left:.5rem;
+  background:rgba(13,11,26,.8);border:1px solid var(--border);
+  border-radius:3px;font-size:.6rem;font-weight:700;
+  letter-spacing:.08em;color:var(--muted);padding:.15rem .4rem;
+  backdrop-filter:blur(6px);
+}
+
 @keyframes fadeUp{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);}}
+
+/* ── CHANGE CREDENTIALS MODAL ── */
+.creds-overlay{
+  position:fixed;inset:0;z-index:9100;
+  display:none;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.82);backdrop-filter:blur(16px);
+}
+.creds-overlay.show{display:flex;}
+.creds-box{
+  width:100%;max-width:400px;margin:1.5rem;
+  background:#13112299;
+  border:1px solid rgba(158,118,204,.35);
+  border-radius:8px;padding:2.4rem 2.2rem;
+  position:relative;overflow:hidden;
+  backdrop-filter:blur(28px);
+  box-shadow:0 32px 80px rgba(0,0,0,.6),0 0 0 1px rgba(158,118,204,.1);
+}
+.creds-box::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:var(--grad2);
+}
+.creds-lock{
+  font-size:2rem;display:block;
+  margin-bottom:.8rem;
+  filter:drop-shadow(0 0 12px rgba(158,118,204,.5));
+}
+.creds-title{
+  font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:900;
+  margin-bottom:.25rem;
+}
+.creds-sub{font-size:.78rem;color:var(--muted);margin-bottom:1.8rem;line-height:1.55;}
+.creds-section-label{
+  font-size:.62rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--purple);margin-bottom:.8rem;margin-top:1.2rem;
+  display:flex;align-items:center;gap:.5rem;
+}
+.creds-section-label::before{content:'';width:14px;height:1.5px;background:var(--grad2);border-radius:1px;}
+.creds-divider{height:1px;background:var(--border);margin:1.4rem 0;}
+.creds-success{
+  background:rgba(78,203,113,.08);border:1px solid rgba(78,203,113,.3);
+  color:var(--green);font-size:.8rem;padding:.75rem 1rem;
+  border-radius:3px;margin-bottom:1.2rem;display:none;text-align:center;
+}
+.creds-success.show{display:block;}
+.creds-err{
+  background:rgba(255,107,107,.08);border:1px solid rgba(255,107,107,.3);
+  color:var(--red);font-size:.78rem;padding:.7rem 1rem;
+  border-radius:3px;margin-bottom:1.1rem;display:none;
+}
+.creds-err.show{display:block;}
+.btn-save-creds{
+  width:100%;background:var(--grad2);color:#fff;-webkit-text-fill-color:#fff;
+  font-family:'DM Sans',sans-serif;font-size:.82rem;font-weight:700;
+  letter-spacing:.14em;text-transform:uppercase;
+  padding:.95rem;border:none;border-radius:3px;cursor:pointer;
+  transition:all .22s;margin-top:.8rem;
+}
+.btn-save-creds:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(112,186,244,.28);}
+.btn-close-creds{
+  position:absolute;top:1rem;right:1rem;
+  background:transparent;border:none;color:var(--muted);
+  font-size:1.1rem;cursor:pointer;padding:.3rem .5rem;
+  border-radius:3px;transition:color .2s;
+}
+.btn-close-creds:hover{color:var(--text);}
+/* secret trigger hint on logo — subtle pulse after 5s */
+.logo{cursor:pointer;}
+
+/* ── SCROLLING PERFORMANCE STRIP ── */
+.perf-strip-wrap{
+  width:100%;overflow:hidden;
+  position:relative;
+  margin-top:3rem;
+  padding:0;
+}
+/* fade edges */
+.perf-strip-wrap::before,
+.perf-strip-wrap::after{
+  content:'';position:absolute;top:0;bottom:0;width:120px;z-index:2;pointer-events:none;
+}
+.perf-strip-wrap::before{left:0;background:linear-gradient(to right,var(--bg) 0%,transparent 100%);}
+.perf-strip-wrap::after{right:0;background:linear-gradient(to left,var(--bg) 0%,transparent 100%);}
+
+.perf-strip{
+  display:flex;gap:1rem;
+  width:max-content;
+  animation:stripScroll 32s linear infinite;
+}
+.perf-strip:hover{animation-play-state:paused;}
+
+@keyframes stripScroll{
+  0%{transform:translateX(0);}
+  100%{transform:translateX(-50%);}
+}
+
+.perf-img-card{
+  flex-shrink:0;
+  width:260px;height:170px;
+  border-radius:6px;
+  overflow:hidden;
+  position:relative;
+  border:1px solid var(--border);
+  background:var(--surface);
+}
+.perf-img-card img{
+  width:100%;height:100%;
+  object-fit:cover;
+  display:block;
+  transition:transform .5s ease;
+  filter:brightness(.85) saturate(1.1);
+}
+.perf-img-card:hover img{transform:scale(1.06);filter:brightness(1) saturate(1.2);}
+.perf-img-card .perf-overlay{
+  position:absolute;inset:0;
+  background:linear-gradient(to top,rgba(13,11,26,.65) 0%,transparent 55%);
+  pointer-events:none;
+}
+.perf-img-card .perf-label{
+  position:absolute;bottom:.7rem;left:.8rem;
+  font-size:.62rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:rgba(255,255,255,.75);pointer-events:none;
+}
+/* placeholder when no image src */
+.perf-img-card.placeholder{
+  background:linear-gradient(135deg,rgba(98,87,158,.18),rgba(112,186,244,.08));
+  border:1px dashed rgba(255,255,255,.12);
+  display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:.4rem;
+}
+.perf-img-card.placeholder .ph-icon{font-size:1.8rem;opacity:.35;}
+.perf-img-card.placeholder .ph-txt{font-size:.65rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;}
 
 /* ── HOME PAGE CTA ── */
 .cta-dashboard{
@@ -711,6 +912,62 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
     </div>
   </section>
 
+  <!-- ── SCROLLING PERFORMANCE IMAGES ── -->
+  <div class="perf-strip-wrap">
+    <div class="perf-strip" id="perfStrip">
+      <!-- SLOT 1 — replace src with your photo -->
+      <div class="perf-img-card placeholder" data-label="Street Show">
+        <span class="ph-icon">🎭</span><span class="ph-txt">Your Photo</span>
+      </div>
+      <!-- SLOT 2 -->
+      <div class="perf-img-card placeholder" data-label="Live Act">
+        <span class="ph-icon">🎸</span><span class="ph-txt">Your Photo</span>
+      </div>
+      <!-- SLOT 3 -->
+      <div class="perf-img-card placeholder" data-label="Performance">
+        <span class="ph-icon">🥁</span><span class="ph-txt">Your Photo</span>
+      </div>
+      <!-- SLOT 4 -->
+      <div class="perf-img-card placeholder" data-label="Crowd">
+        <span class="ph-icon">🎤</span><span class="ph-txt">Your Photo</span>
+      </div>
+      <!-- SLOT 5 -->
+      <div class="perf-img-card placeholder" data-label="Event">
+        <span class="ph-icon">🎶</span><span class="ph-txt">Your Photo</span>
+      </div>
+      <!-- SLOT 6 -->
+      <div class="perf-img-card placeholder" data-label="Night Show">
+        <span class="ph-icon">🌃</span><span class="ph-txt">Your Photo</span>
+      </div>
+      <!-- SLOT 7 -->
+      <div class="perf-img-card placeholder" data-label="Dance">
+        <span class="ph-icon">💃</span><span class="ph-txt">Your Photo</span>
+      </div>
+      <!-- Duplicates for seamless loop -->
+      <div class="perf-img-card placeholder" data-label="Street Show">
+        <span class="ph-icon">🎭</span><span class="ph-txt">Your Photo</span>
+      </div>
+      <div class="perf-img-card placeholder" data-label="Live Act">
+        <span class="ph-icon">🎸</span><span class="ph-txt">Your Photo</span>
+      </div>
+      <div class="perf-img-card placeholder" data-label="Performance">
+        <span class="ph-icon">🥁</span><span class="ph-txt">Your Photo</span>
+      </div>
+      <div class="perf-img-card placeholder" data-label="Crowd">
+        <span class="ph-icon">🎤</span><span class="ph-txt">Your Photo</span>
+      </div>
+      <div class="perf-img-card placeholder" data-label="Event">
+        <span class="ph-icon">🎶</span><span class="ph-txt">Your Photo</span>
+      </div>
+      <div class="perf-img-card placeholder" data-label="Night Show">
+        <span class="ph-icon">🌃</span><span class="ph-txt">Your Photo</span>
+      </div>
+      <div class="perf-img-card placeholder" data-label="Dance">
+        <span class="ph-icon">💃</span><span class="ph-txt">Your Photo</span>
+      </div>
+    </div>
+  </div>
+
   <div class="cta-dashboard">
     <div class="cta-card">
       <div class="cta-left">
@@ -842,6 +1099,7 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
       <div style="display:flex;gap:.8rem;align-items:center;">
         <div class="live-badge"><div class="live-dot"></div>Live</div>
         <button class="export-btn" onclick="exportCSV()">⬇ Export CSV</button>
+        <button onclick="openChangeCreds()" style="background:transparent;border:1px solid rgba(158,118,204,.4);color:var(--purple);font-family:'DM Sans',sans-serif;font-size:.72rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:.45rem 1rem;cursor:pointer;border-radius:3px;transition:all .2s;" onmouseover="this.style.background='rgba(158,118,204,.1)'" onmouseout="this.style.background='transparent'">🔑 Change Password</button>
       </div>
     </div>
 
@@ -859,6 +1117,7 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
       <button class="atab" id="atab-venues" onclick="switchAdminTab('venues')">🏟 Venue Manager</button>
       <button class="atab" id="atab-import" onclick="switchAdminTab('import')">⬆ Import CSV</button>
       <button class="atab" id="atab-bookings" onclick="switchAdminTab('bookings')">📋 All Bookings</button>
+      <button class="atab" id="atab-photos" onclick="switchAdminTab('photos')">🖼 Front Page Photos</button>
     </div>
 
     <!-- APPROVALS TAB -->
@@ -955,6 +1214,31 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
           <div class="table-empty"><span class="emoji">🎭</span>No bookings yet.</div>
         </div>
       </div>
+    </div>
+
+    <!-- PHOTOS TAB -->
+    <div id="atab-content-photos" style="display:none;">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:1.6rem;flex-wrap:wrap;gap:1rem;">
+        <div>
+          <div style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;margin-bottom:.3rem;">Front Page Photos</div>
+          <div style="font-size:.82rem;color:var(--muted);">Photos you upload here scroll across the home page automatically.</div>
+        </div>
+        <label class="btn-upload-photo" for="photoFileInput">
+          <span>＋ Upload Photos</span>
+          <input type="file" id="photoFileInput" accept="image/*" multiple style="display:none;" onchange="handlePhotoUpload(event)">
+        </label>
+      </div>
+
+      <!-- Drop zone -->
+      <div class="photo-drop-zone" id="photoDropZone" onclick="document.getElementById('photoFileInput').click()">
+        <div class="pdz-icon">🖼</div>
+        <div class="pdz-title">Drop images here or click to upload</div>
+        <div class="pdz-sub">JPG, PNG, WEBP — multiple files OK · Max 5 MB each</div>
+      </div>
+
+      <!-- Photo grid -->
+      <div class="photo-mgmt-grid" id="photoMgmtGrid"></div>
+      <div id="photoEmptyState" style="text-align:center;padding:3rem 1rem;color:var(--muted);font-size:.88rem;font-style:italic;display:none;">No photos yet. Upload some above to fill the front page strip.</div>
     </div>
 
   </div>
@@ -1236,9 +1520,18 @@ function renderAfterLoad() {
   renderCalendar();
   renderVenueList();
   updateHeroStats();
-  renderUserBookings(); // re-render with fully loaded + cross-checked statuses
+  renderUserBookings();
+  // Restore form venue badge if user was on the form page
+  if (selectedVenueId) {
+    const v = venues.find(x => x.id === selectedVenueId);
+    if (v) {
+      const badge = document.getElementById('form-venue-badge');
+      if (badge) badge.textContent = `📍 ${v.name} · ${v.day||''} ${formatDateShort(v.date)} · ${formatTime(v.timeStart)}–${formatTime(v.timeEnd)}`;
+      updateSummary();
+      validateForm();
+    }
+  }
   initStatusSnapshot();
-  // auto-start polling if user has pending bookings
   if (myBookings.some(b => b.status === 'pending')) startStatusPolling();
 }
 
@@ -1247,6 +1540,10 @@ function renderAfterLoad() {
 // PAGE NAVIGATION
 // ═══════════════════════════════════════
 function showPage(page) {
+  // Persist current page so refresh restores it (never persist admin page)
+  if (page !== 'admin') {
+    try { localStorage.setItem('ots_current_page', page); } catch(e){}
+  }
   // hide all public pages + admin
   ['home','venues','form','admin'].forEach(p => {
     const el = document.getElementById('page-'+p);
@@ -1408,6 +1705,7 @@ function renderVenueList() {
 }
 function pickVenue(id) {
   selectedVenueId = id;
+  try { localStorage.setItem('ots_selected_venue', id); } catch(e){}
   updateSummary();
   validateForm();
   // update form badge
@@ -1422,7 +1720,19 @@ function pickVenue(id) {
 // ═══════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════
-function init() { updateHeroStats(); loadData(); }
+function init() {
+  updateHeroStats();
+  // Restore the page the user was on before refresh
+  try {
+    const savedPage = localStorage.getItem('ots_current_page');
+    const savedVenueId = localStorage.getItem('ots_selected_venue');
+    if (savedVenueId) selectedVenueId = savedVenueId;
+    if (savedPage && ['home','venues','form'].includes(savedPage)) {
+      showPage(savedPage);
+    }
+  } catch(e){}
+  loadData();
+}
 // Also keep renderVenues stub for admin compatibility
 function renderVenues() {}
 
@@ -1572,6 +1882,8 @@ async function submitBooking() {
   document.getElementById('phone-err').textContent='';
   document.getElementById('phone-icon').textContent='';
   document.getElementById('inp-type').value='';
+  selectedVenueId = null;
+  try { localStorage.removeItem('ots_selected_venue'); localStorage.setItem('ots_current_page','venues'); } catch(e){}
   updateSummary(); validateForm();
 }
 
@@ -1647,7 +1959,7 @@ function _refreshAdminUI() {
 }
 function switchAdminTab(tab) {
   currentAdminTab = tab;
-  ['approvals','venues','import','bookings'].forEach(t => {
+  ['approvals','venues','import','bookings','photos'].forEach(t => {
     const btn = document.getElementById('atab-'+t);
     const pane = document.getElementById('atab-content-'+t);
     if (btn)  btn.classList.toggle('active', t===tab);
@@ -1656,6 +1968,7 @@ function switchAdminTab(tab) {
   if (tab==='approvals') renderApprovalQueue();
   if (tab==='venues')    renderVenueManager();
   if (tab==='bookings')  filterTable();
+  if (tab==='photos')    renderPhotoManager();
 }
 function updateAdminStats() {
   const pending   = allBookings.filter(b=>b.status==='pending').length;
@@ -2204,13 +2517,135 @@ function formatTime(t) {
 // ═══════════════════════════════════════
 // START
 // ═══════════════════════════════════════
+// ═══════════════════════════════════════
+// PHOTO MANAGER
+// ═══════════════════════════════════════
+let perfPhotos = []; // [{id, dataUrl, label}]
+
+function loadPerfPhotos() {
+  try { perfPhotos = JSON.parse(localStorage.getItem('ots_perf_photos') || '[]'); } catch(e) { perfPhotos = []; }
+}
+function savePerfPhotos() {
+  try { localStorage.setItem('ots_perf_photos', JSON.stringify(perfPhotos)); } catch(e) {}
+}
+
+function handlePhotoUpload(e) {
+  const files = Array.from(e.target.files);
+  if (!files.length) return;
+  let loaded = 0;
+  files.forEach(file => {
+    if (file.size > 5 * 1024 * 1024) { showToast('⚠️','Too Large', file.name + ' exceeds 5 MB, skipped.'); loaded++; check(); return; }
+    const reader = new FileReader();
+    reader.onload = ev => {
+      perfPhotos.push({ id: 'ph_' + Date.now() + '_' + Math.random().toString(36).slice(2,6), dataUrl: ev.target.result, label: file.name.replace(/\.[^.]+$/,'') });
+      loaded++;
+      check();
+    };
+    reader.readAsDataURL(file);
+  });
+  function check() { if (loaded === files.length) { savePerfPhotos(); renderPhotoManager(); renderPerfStrip(); showToast('🖼','Photos Uploaded', files.length + ' photo(s) added to front page.'); } }
+  e.target.value = '';
+}
+
+function deletePhoto(id) {
+  perfPhotos = perfPhotos.filter(p => p.id !== id);
+  savePerfPhotos(); renderPhotoManager(); renderPerfStrip();
+  showToast('🗑','Photo Removed','Photo has been removed from the front page.');
+}
+
+function movePhoto(id, dir) {
+  const i = perfPhotos.findIndex(p => p.id === id);
+  if (i < 0) return;
+  const j = i + dir;
+  if (j < 0 || j >= perfPhotos.length) return;
+  [perfPhotos[i], perfPhotos[j]] = [perfPhotos[j], perfPhotos[i]];
+  savePerfPhotos(); renderPhotoManager(); renderPerfStrip();
+}
+
+function updatePhotoLabel(id, val) {
+  const p = perfPhotos.find(x => x.id === id);
+  if (p) { p.label = val; savePerfPhotos(); renderPerfStrip(); }
+}
+
+function renderPhotoManager() {
+  const grid = document.getElementById('photoMgmtGrid');
+  const empty = document.getElementById('photoEmptyState');
+  if (!grid) return;
+  if (!perfPhotos.length) { grid.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  grid.innerHTML = perfPhotos.map((p,i) => `
+    <div class="photo-mgmt-card">
+      <div class="pmc-order">#${i+1}</div>
+      <img class="pmc-thumb" src="${p.dataUrl}" alt="${p.label}">
+      <div class="pmc-body">
+        <input class="pmc-label-input" value="${p.label.replace(/"/g,'&quot;')}" placeholder="Caption..." oninput="updatePhotoLabel('${p.id}', this.value)">
+        <div class="pmc-actions">
+          <button class="pmc-move" onclick="movePhoto('${p.id}',-1)" title="Move left" ${i===0?'disabled style="opacity:.3"':''}>◀</button>
+          <button class="pmc-move" onclick="movePhoto('${p.id}',1)"  title="Move right" ${i===perfPhotos.length-1?'disabled style="opacity:.3"':''}>▶</button>
+          <button class="pmc-del" onclick="deletePhoto('${p.id}')">✕ Remove</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function renderPerfStrip() {
+  const strip = document.getElementById('perfStrip');
+  if (!strip) return;
+  if (!perfPhotos.length) {
+    // show placeholder cards
+    strip.innerHTML = ['🎭','🎸','🥁','🎤','🎶','🌃','💃'].map((ic,i) => `
+      <div class="perf-img-card placeholder">
+        <span class="ph-icon">${ic}</span><span class="ph-txt">Your Photo</span>
+      </div>`).join('') + ['🎭','🎸','🥁','🎤','🎶','🌃','💃'].map((ic,i) => `
+      <div class="perf-img-card placeholder">
+        <span class="ph-icon">${ic}</span><span class="ph-txt">Your Photo</span>
+      </div>`).join('');
+    return;
+  }
+  // duplicate for seamless loop
+  const cards = [...perfPhotos, ...perfPhotos].map(p => `
+    <div class="perf-img-card">
+      <img src="${p.dataUrl}" alt="${p.label}">
+      <div class="perf-overlay"></div>
+      <div class="perf-label">${p.label}</div>
+    </div>`).join('');
+  strip.innerHTML = cards;
+}
+
+// Drag-and-drop on drop zone + initial load
+function initPhotoManager() {
+  loadPerfPhotos();
+  renderPerfStrip();
+  const dz = document.getElementById('photoDropZone');
+  if (dz) {
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+    dz.addEventListener('drop', e => {
+      e.preventDefault(); dz.classList.remove('drag-over');
+      const dt = e.dataTransfer;
+      if (dt && dt.files.length) {
+        const fakeEv = { target: { files: dt.files, value:'' }, preventDefault:()=>{} };
+        handlePhotoUpload(fakeEv);
+      }
+    });
+  }
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initPhotoManager);
+} else {
+  initPhotoManager();
+}
+
 init();
 
 // ═══════════════════════════════════════
 // ADMIN AUTH
 // ═══════════════════════════════════════
-const ADMIN_USER = 'admin';
-const ADMIN_PASS = 'ots2024';
+// Credentials stored in localStorage so they survive page refresh
+// Defaults: admin / ots2024
+function getAdminUser(){ return localStorage.getItem('ots_admin_user') || 'admin'; }
+function getAdminPass(){ return localStorage.getItem('ots_admin_pass') || 'ots2024'; }
+
 let adminLoggedIn = false;
 let _logoClicks = 0, _logoTimer = null;
 
@@ -2225,11 +2660,58 @@ function handleLogoClick() {
   }
 }
 
+// ── CHANGE CREDENTIALS ──────────────────
+function openChangeCreds() {
+  document.getElementById('credsOverlay').classList.add('show');
+  document.getElementById('credsSuccess').classList.remove('show');
+  document.getElementById('credsErr').classList.remove('show');
+  // pre-fill current username
+  document.getElementById('newUser').value = getAdminUser();
+  document.getElementById('newPass').value = '';
+  document.getElementById('confirmPass').value = '';
+  document.getElementById('currentPassCheck').value = '';
+  document.getElementById('newUser').focus();
+}
+function closeChangeCreds() {
+  document.getElementById('credsOverlay').classList.remove('show');
+}
+function saveNewCreds() {
+  const currentOk = document.getElementById('currentPassCheck').value;
+  const newUser   = document.getElementById('newUser').value.trim();
+  const newPass   = document.getElementById('newPass').value;
+  const confirm   = document.getElementById('confirmPass').value;
+  const err       = document.getElementById('credsErr');
+  const ok        = document.getElementById('credsSuccess');
+  err.classList.remove('show'); ok.classList.remove('show');
+
+  if (currentOk !== getAdminPass()) {
+    err.textContent = '❌ Current password is incorrect.';
+    err.classList.add('show'); return;
+  }
+  if (!newUser) {
+    err.textContent = '❌ Username cannot be empty.';
+    err.classList.add('show'); return;
+  }
+  if (newPass.length < 4) {
+    err.textContent = '❌ New password must be at least 4 characters.';
+    err.classList.add('show'); return;
+  }
+  if (newPass !== confirm) {
+    err.textContent = '❌ Passwords do not match.';
+    err.classList.add('show'); return;
+  }
+  localStorage.setItem('ots_admin_user', newUser);
+  localStorage.setItem('ots_admin_pass', newPass);
+  ok.classList.add('show');
+  setTimeout(() => closeChangeCreds(), 1400);
+  showToast('🔑', 'Credentials Updated', 'New username & password saved.');
+}
+
 function doLogin() {
   const u = document.getElementById('loginUser').value.trim();
   const p = document.getElementById('loginPass').value;
   const err = document.getElementById('loginErr');
-  if (u === ADMIN_USER && p === ADMIN_PASS) {
+  if (u === getAdminUser() && p === getAdminPass()) {
     adminLoggedIn = true;
     err.classList.remove('show');
     document.getElementById('loginPage').classList.remove('show');
@@ -2299,6 +2781,42 @@ function togglePw() {
   </div>
 </div>
 
+<!-- CHANGE CREDENTIALS MODAL -->
+<div class="creds-overlay" id="credsOverlay" onclick="if(event.target===this)closeChangeCreds()">
+  <div class="creds-box">
+    <button class="btn-close-creds" onclick="closeChangeCreds()">✕</button>
+    <span class="creds-lock">🔑</span>
+    <div class="creds-title">Change Credentials</div>
+    <div class="creds-sub">Update your admin username and password. You'll need your current password to confirm.</div>
+
+    <div class="creds-err" id="credsErr"></div>
+    <div class="creds-success" id="credsSuccess">✅ Credentials saved successfully!</div>
+
+    <div class="creds-section-label">Current Password</div>
+    <div class="input-wrap" style="margin-bottom:0;">
+      <input type="password" class="form-input" id="currentPassCheck" placeholder="Enter your current password">
+    </div>
+
+    <div class="creds-divider"></div>
+
+    <div class="creds-section-label">New Username</div>
+    <div class="input-wrap" style="margin-bottom:.9rem;">
+      <input type="text" class="form-input" id="newUser" placeholder="New username" autocomplete="off">
+    </div>
+
+    <div class="creds-section-label" style="margin-top:0;">New Password</div>
+    <div class="input-wrap" style="margin-bottom:.9rem;">
+      <input type="password" class="form-input" id="newPass" placeholder="New password (min 4 chars)" autocomplete="new-password">
+    </div>
+
+    <div class="creds-section-label" style="margin-top:0;">Confirm New Password</div>
+    <div class="input-wrap" style="margin-bottom:0;">
+      <input type="password" class="form-input" id="confirmPass" placeholder="Repeat new password" autocomplete="new-password" onkeydown="if(event.key==='Enter')saveNewCreds()">
+    </div>
+
+    <button class="btn-save-creds" onclick="saveNewCreds()">Save New Credentials →</button>
+  </div>
+</div>
 
 </body>
 </html>
