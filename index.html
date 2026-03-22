@@ -552,15 +552,20 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
 
 /* ── SCROLLING PERFORMANCE STRIP ── */
 .perf-strip-wrap{
-  width:100%;overflow:hidden;
+  width:100%;overflow-x:auto;overflow-y:hidden;
   position:relative;
   margin-top:3rem;
-  padding:0;
+  padding:0 0 .6rem;
+  cursor:grab;
+  scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;
 }
+.perf-strip-wrap::-webkit-scrollbar{display:none;}
+.perf-strip-wrap.dragging{cursor:grabbing;}
 /* fade edges */
 .perf-strip-wrap::before,
 .perf-strip-wrap::after{
-  content:'';position:absolute;top:0;bottom:0;width:120px;z-index:2;pointer-events:none;
+  content:'';position:absolute;top:0;bottom:0;width:80px;z-index:2;pointer-events:none;
 }
 .perf-strip-wrap::before{left:0;background:linear-gradient(to right,var(--bg) 0%,transparent 100%);}
 .perf-strip-wrap::after{right:0;background:linear-gradient(to left,var(--bg) 0%,transparent 100%);}
@@ -569,8 +574,10 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
   display:flex;gap:1rem;
   width:max-content;
   animation:stripScroll 32s linear infinite;
+  padding:0 .5rem;
 }
-.perf-strip:hover{animation-play-state:paused;}
+.perf-strip.paused,
+.perf-strip-wrap:hover .perf-strip{animation-play-state:paused;}
 
 @keyframes stripScroll{
   0%{transform:translateX(0);}
@@ -2746,6 +2753,66 @@ if (document.readyState === 'loading') {
 }
 
 init();
+
+// ═══════════════════════════════════════
+// PERF STRIP — DRAG TO SCROLL
+// ═══════════════════════════════════════
+(function() {
+  function initStripDrag() {
+    const wrap  = document.querySelector('.perf-strip-wrap');
+    const strip = document.getElementById('perfStrip');
+    if (!wrap || !strip) return;
+
+    let isDown = false, startX = 0, scrollLeft = 0, resumeTimer = null;
+
+    function pauseAnim() {
+      strip.classList.add('paused');
+      clearTimeout(resumeTimer);
+    }
+    function resumeAnim() {
+      resumeTimer = setTimeout(() => strip.classList.remove('paused'), 1200);
+    }
+
+    // Mouse
+    wrap.addEventListener('mousedown', e => {
+      isDown = true;
+      wrap.classList.add('dragging');
+      startX = e.pageX - wrap.offsetLeft;
+      scrollLeft = wrap.scrollLeft;
+      pauseAnim();
+    });
+    window.addEventListener('mouseup', () => {
+      if (!isDown) return;
+      isDown = false;
+      wrap.classList.remove('dragging');
+      resumeAnim();
+    });
+    wrap.addEventListener('mousemove', e => {
+      if (!isDown) return;
+      e.preventDefault();
+      const x = e.pageX - wrap.offsetLeft;
+      wrap.scrollLeft = scrollLeft - (x - startX);
+    });
+
+    // Touch
+    wrap.addEventListener('touchstart', e => {
+      startX = e.touches[0].pageX - wrap.offsetLeft;
+      scrollLeft = wrap.scrollLeft;
+      pauseAnim();
+    }, { passive: true });
+    wrap.addEventListener('touchend', resumeAnim, { passive: true });
+    wrap.addEventListener('touchmove', e => {
+      const x = e.touches[0].pageX - wrap.offsetLeft;
+      wrap.scrollLeft = scrollLeft - (x - startX);
+    }, { passive: true });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initStripDrag);
+  } else {
+    initStripDrag();
+  }
+})();
 
 // ═══════════════════════════════════════
 // ADMIN AUTH
