@@ -1450,7 +1450,7 @@ async function loadData() {
       phone:b.phone||'', notes:b.notes||'',
       status:b.status||'pending', createdAt:b.created_at||''
     }));
-    galleryPhotos = gRows.map(g=>({id:g.id,url:g.url,caption:g.caption||''}));
+    galleryPhotos = gRows.filter(g => !g.id || !g.id.startsWith("perf_")).map(g=>({id:g.id,url:g.url,caption:g.caption||""}));
 
     // ── Cross-check myBookings statuses against live Supabase data ──
     // This catches approvals/rejections that happened while user was away
@@ -1944,7 +1944,7 @@ function refreshAdmin() {
         phone:b.phone||'',notes:b.notes||'',
         status:b.status||'pending',createdAt:b.created_at||''
       }));
-      galleryPhotos = gRows.map(g=>({id:g.id,url:g.url,caption:g.caption||''}));
+      galleryPhotos = gRows.filter(g => !g.id || !g.id.startsWith("perf_")).map(g=>({id:g.id,url:g.url,caption:g.caption||""}));
       saveLocal();
     })
     .catch(()=>{})
@@ -2521,36 +2521,129 @@ function formatTime(t) {
 // PHOTO MANAGER
 // ═══════════════════════════════════════
 let perfPhotos = []; // [{id, dataUrl, label}]
+// perf photos are stored in the gallery Supabase table with id prefixed 'perf_'
+// so they sync across all devices automatically
 
-function loadPerfPhotos() {
+// ── Supabase Storage bucket name ──
+const SB_STORAGE_BUCKET = 'photos';
+
+// Upload a file to Supabase Storage and return its public URL
+async function sbStorageUpload(file, path) {
+  const res = await fetch(`${SB_URL}/storage/v1/object/${SB_STORAGE_BUCKET}/${path}`, {
+    method: 'POST',
+    headers: {
+      'apikey': SB_KEY,
+      'Authorization': `Bearer ${SB_KEY}`,
+      'Content-Type': file.type,
+      'x-upsert': 'true'
+    },
+    body: file
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error('Storage upload failed: ' + txt);
+  }
+  // Return the public URL
+  return `${SB_URL}/storage/v1/object/public/${SB_STORAGE_BUCKET}/${path}`;
+}
+
+// Delete a file from Supabase Storage
+async function sbStorageDelete(path) {
+  await fetch(`${SB_URL}/storage/v1/object/${SB_STORAGE_BUCKET}/${path}`, {
+    method: 'DELETE',
+    headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
+  });
+}
+
+async function loadPerfPhotos() {
+  // First try Supabase gallery table (urls are now real Storage URLs)
+  try {
+    const rows = await sbGet('gallery');
+    const perf = rows.filter(r => r.id && r.id.startsWith('perf_'));
+    if (perf.length) {
+      perfPhotos = perf.map(r => ({ id: r.id, dataUrl: r.url, label: r.caption || '' }));
+      try { localStorage.setItem('ots_perf_photos', JSON.stringify(perfPhotos)); } catch(e){}
+      return;
+    }
+  } catch(e) { /* fall through to localStorage */ }
+  // localStorage fallback (may still have old base64 data — that's OK, still displays)
   try { perfPhotos = JSON.parse(localStorage.getItem('ots_perf_photos') || '[]'); } catch(e) { perfPhotos = []; }
 }
-function savePerfPhotos() {
-  try { localStorage.setItem('ots_perf_photos', JSON.stringify(perfPhotos)); } catch(e) {}
+
+async function savePerfPhotos() {
+  // Save lightweight copy to localStorage (store url not base64 where possible)
+  try {
+    const light = perfPhotos.map(p => ({ id: p.id, dataUrl: p.dataUrl, label: p.label }));
+    localStorage.setItem('ots_perf_photos', JSON.stringify(light));
+  } catch(e) {}
+  // Sync gallery rows to Supabase (only url + caption, no giant base64)
+  try {
+    const remoteRows = await sbGet('gallery');
+    const remotePerf = remoteRows.filter(r => r.id && r.id.startsWith('perf_'));
+    const localIds = new Set(perfPhotos.map(p => p.id));
+    // Delete rows (and storage files) that were removed locally
+    for (const row of remotePerf) {
+      if (!localIds.has(row.id)) {
+        await sbDelete('gallery', row.id);
+        // Also remove from storage if it's a storage path (not a legacy base64 row)
+        if (row.url && row.url.includes('/storage/v1/object/public/')) {
+          const path = row.url.split(`/public/${SB_STORAGE_BUCKET}/`)[1];
+          if (path) await sbStorageDelete(path).catch(()=>{});
+        }
+      }
+    }
+    // Upsert current photos (url is already a public Storage URL at this point)
+    if (perfPhotos.length) {
+      const rows = perfPhotos.map(p => ({ id: p.id, url: p.dataUrl, caption: p.label || '' }));
+      await sbUpsert('gallery', rows);
+    }
+    showSyncStatus('✅ Photos synced', 'var(--green)');
+  } catch(e) {
+    console.warn('Perf photos Supabase sync failed, saved locally only:', e);
+    showSyncStatus('⚠ Photos saved locally only', 'var(--orange)');
+  }
 }
 
-function handlePhotoUpload(e) {
+async function handlePhotoUpload(e) {
   const files = Array.from(e.target.files);
   if (!files.length) return;
-  let loaded = 0;
-  files.forEach(file => {
-    if (file.size > 5 * 1024 * 1024) { showToast('⚠️','Too Large', file.name + ' exceeds 5 MB, skipped.'); loaded++; check(); return; }
-    const reader = new FileReader();
-    reader.onload = ev => {
-      perfPhotos.push({ id: 'ph_' + Date.now() + '_' + Math.random().toString(36).slice(2,6), dataUrl: ev.target.result, label: file.name.replace(/\.[^.]+$/,'') });
-      loaded++;
-      check();
-    };
-    reader.readAsDataURL(file);
-  });
-  function check() { if (loaded === files.length) { savePerfPhotos(); renderPhotoManager(); renderPerfStrip(); showToast('🖼','Photos Uploaded', files.length + ' photo(s) added to front page.'); } }
   e.target.value = '';
+
+  const tooBig = files.filter(f => f.size > 5 * 1024 * 1024);
+  tooBig.forEach(f => showToast('⚠️', 'Too Large', f.name + ' exceeds 5 MB, skipped.'));
+  const valid = files.filter(f => f.size <= 5 * 1024 * 1024);
+  if (!valid.length) return;
+
+  showToast('⏳', 'Uploading…', 'Sending ' + valid.length + ' photo(s) to cloud…');
+
+  let successCount = 0;
+  for (const file of valid) {
+    try {
+      const ext  = file.name.split('.').pop().toLowerCase() || 'jpg';
+      const id   = 'perf_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+      const path = id + '.' + ext;
+      const publicUrl = await sbStorageUpload(file, path);
+      const label = file.name.replace(/\.[^.]+$/, '');
+      perfPhotos.push({ id, dataUrl: publicUrl, label });
+      successCount++;
+    } catch(err) {
+      console.error('Upload error:', err);
+      showToast('❌', 'Upload Failed', file.name + ' could not be uploaded.');
+    }
+  }
+
+  if (successCount > 0) {
+    await savePerfPhotos();
+    renderPhotoManager();
+    renderPerfStrip();
+    showToast('🖼', 'Photos Live!', successCount + ' photo(s) now visible on all devices!');
+  }
 }
 
 function deletePhoto(id) {
   perfPhotos = perfPhotos.filter(p => p.id !== id);
-  savePerfPhotos(); renderPhotoManager(); renderPerfStrip();
-  showToast('🗑','Photo Removed','Photo has been removed from the front page.');
+  renderPhotoManager(); renderPerfStrip();
+  savePerfPhotos().then(() => showToast('🗑','Photo Removed','Removed from all devices.'));
 }
 
 function movePhoto(id, dir) {
@@ -2559,12 +2652,13 @@ function movePhoto(id, dir) {
   const j = i + dir;
   if (j < 0 || j >= perfPhotos.length) return;
   [perfPhotos[i], perfPhotos[j]] = [perfPhotos[j], perfPhotos[i]];
-  savePerfPhotos(); renderPhotoManager(); renderPerfStrip();
+  renderPhotoManager(); renderPerfStrip();
+  savePerfPhotos();
 }
 
 function updatePhotoLabel(id, val) {
   const p = perfPhotos.find(x => x.id === id);
-  if (p) { p.label = val; savePerfPhotos(); renderPerfStrip(); }
+  if (p) { p.label = val; renderPerfStrip(); savePerfPhotos(); }
 }
 
 function renderPhotoManager() {
@@ -2613,8 +2707,9 @@ function renderPerfStrip() {
 }
 
 // Drag-and-drop on drop zone + initial load
-function initPhotoManager() {
-  loadPerfPhotos();
+async function initPhotoManager() {
+  await loadPerfPhotos();
+  renderPhotoManager();
   renderPerfStrip();
   const dz = document.getElementById('photoDropZone');
   if (dz) {
