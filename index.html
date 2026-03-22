@@ -2556,18 +2556,33 @@ async function sbStorageDelete(path) {
 }
 
 async function loadPerfPhotos() {
-  // First try Supabase gallery table (urls are now real Storage URLs)
+  // ── Step 1: Show cached photos INSTANTLY (no waiting) ──
+  try {
+    const cached = JSON.parse(localStorage.getItem('ots_perf_photos') || '[]');
+    if (cached.length) {
+      perfPhotos = cached;
+      renderPerfStrip();   // visible immediately
+      renderPhotoManager();
+    }
+  } catch(e) {}
+
+  // ── Step 2: Refresh from Supabase in background, update if different ──
   try {
     const rows = await sbGet('gallery');
     const perf = rows.filter(r => r.id && r.id.startsWith('perf_'));
     if (perf.length) {
       perfPhotos = perf.map(r => ({ id: r.id, dataUrl: r.url, label: r.caption || '' }));
-      try { localStorage.setItem('ots_perf_photos', JSON.stringify(perfPhotos)); } catch(e){}
-      return;
+      try { localStorage.setItem('ots_perf_photos', JSON.stringify(perfPhotos)); } catch(e) {}
+      renderPerfStrip();    // update with latest from cloud
+      renderPhotoManager();
+    } else if (!perfPhotos.length) {
+      // DB is empty and no cache — show placeholders
+      renderPerfStrip();
+      renderPhotoManager();
     }
-  } catch(e) { /* fall through to localStorage */ }
-  // localStorage fallback (may still have old base64 data — that's OK, still displays)
-  try { perfPhotos = JSON.parse(localStorage.getItem('ots_perf_photos') || '[]'); } catch(e) { perfPhotos = []; }
+  } catch(e) {
+    // Supabase unreachable — cached version already shown, no action needed
+  }
 }
 
 async function savePerfPhotos() {
@@ -2707,10 +2722,9 @@ function renderPerfStrip() {
 }
 
 // Drag-and-drop on drop zone + initial load
-async function initPhotoManager() {
-  await loadPerfPhotos();
-  renderPhotoManager();
-  renderPerfStrip();
+function initPhotoManager() {
+  // loadPerfPhotos renders from cache immediately, then syncs Supabase in background
+  loadPerfPhotos();
   const dz = document.getElementById('photoDropZone');
   if (dz) {
     dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
